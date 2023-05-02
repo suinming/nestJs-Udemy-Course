@@ -7,77 +7,64 @@ import {
   Delete,
   Body,
   HttpCode,
+  ParseUUIDPipe,
+  ParseEnumPipe,
 } from '@nestjs/common';
-import { data, ReportType } from 'src/data';
-import { v4 as uuid } from 'uuid';
+import { ReportType } from 'src/data';
+import { AppService } from './app.service';
+import {
+  CreateReportDto,
+  ReportResponseDto,
+  UpdateReportDto,
+} from './dtos/report.dto';
 
 @Controller('report/:type')
 export class AppController {
+  constructor(private readonly appService: AppService) { }
+
   @Get()
-  getAllReports(@Param('type') type: string) {
+  getAllReports(@Param('type') type: string): ReportResponseDto[] {
     const reportType =
       type === 'income' ? ReportType.INCOME : ReportType.EXPENSE;
-    return data.report.filter((report) => report.type === reportType);
+    return this.appService.getAllReports(reportType);
   }
 
   @Get(':id')
-  getReportById(@Param('type') type: string, @Param('id') id: string) {
+  getReportById(
+    @Param('type', new ParseEnumPipe(ReportType)) type: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): ReportResponseDto {
     const reportType =
       type === 'income' ? ReportType.INCOME : ReportType.EXPENSE;
-    return data.report
-      .filter((report) => report.type === reportType)
-      .find((report) => report.id === id);
+    return this.appService.getReportById(reportType, id);
   }
 
   @Post()
-  // destructure the prop from body object
   createReport(
+    @Body() { amount, source }: CreateReportDto,
     @Param('type') type: string,
-    @Body() { amount, source }: { amount: number; source: string },
-  ) {
-    const newReport = {
-      id: uuid(),
-      amount: amount,
-      source: source,
-      created_at: new Date(),
-      updated_at: new Date(),
-      type: type === 'income' ? ReportType.INCOME : ReportType.EXPENSE,
-    };
-    data.report.push(newReport);
-    return newReport;
+  ): ReportResponseDto {
+    const reportType =
+      type === 'income' ? ReportType.INCOME : ReportType.EXPENSE;
+    return this.appService.createReport(reportType, { amount, source });
   }
 
   @Put(':id')
   updateReport(
     @Param('type') type: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body()
-    body: { amount: number; source: string },
-  ) {
+    body: UpdateReportDto,
+  ): ReportResponseDto {
     const reportType =
       type === 'income' ? ReportType.INCOME : ReportType.EXPENSE;
-    const reportToUpdate = data.report
-      .filter((report) => report.type === reportType)
-      .find((report) => report.id === id);
-    if (!reportToUpdate) return;
 
-    const reportIndex = data.report.findIndex(
-      (report) => report.id === reportToUpdate.id,
-    );
-    data.report[reportIndex] = {
-      ...data.report[reportIndex],
-      ...body,
-    };
-
-    return data.report[reportIndex];
+    return this.appService.updateReport(reportType, id, body);
   }
 
   @HttpCode(204)
   @Delete(':id')
-  deleteReport(@Param('id') id: string) {
-    const reportIndex = data.report.findIndex((report) => report.id === id);
-    if (reportIndex === -1) return;
-    data.report.splice(reportIndex, 1);
-    return;
+  deleteReport(@Param('id', ParseUUIDPipe) id: string) {
+    return this.appService.deleteReport(id);
   }
 }
