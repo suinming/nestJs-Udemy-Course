@@ -9,3 +9,71 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id               Int       @id @default(autoincrement())
+  name             String
+  phone            String
+  email            String
+  password         String
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  user_Type        UserType
+  homes            Home[]
+  // HACK: still confusing
+  buyer_messages   Message[] @relation("buyer_messages")
+  // HACK: still confusing
+  realtor_messages Message[] @relation("realtor_messages")
+}
+
+model Home {
+  id                  Int          @id @default(autoincrement())
+  address             String
+  number_of_bedrooms  Int
+  number_of_bathrooms Int
+  city                String
+  listed_date         DateTime     @default(now())
+  price               Float
+  land_size           Float
+  propertyType        PropertyType
+  // one image can belong to one home
+  images              Image[]
+  // one home can belong to a user
+  realtor_id          Int
+  realtor             User         @relation(fields: [realtor_id], references: [id])
+  messages            Message[]
+}
+
+model Image {
+  id         Int      @id @default(autoincrement())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  // one image can belong to one home
+  home_id    Int
+  home       Home     @relation(fields: [home_id], references: [id])
+}
+
+model Message {
+  id         Int    @id @default(autoincrement())
+  message    String
+  // one message will belong to one home
+  home_id    Int
+  home       Home   @relation(fields: [home_id], references: [id])
+  // HACK: still confusing  
+  realtor_id Int
+  realtor    User   @relation("realtor_messages", fields: [realtor_id], references: [id])
+  // HACK: still confusing  
+  buyer_id   Int
+  buyer      User   @relation("buyer_messages", fields: [buyer_id], references: [id])
+}
+
+enum PropertyType {
+  RESIDENTIAL
+  CONDO
+}
+
+enum UserType {
+  BUYER
+  REALTOR
+  ADMIN
+}
