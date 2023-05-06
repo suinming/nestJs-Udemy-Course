@@ -42,10 +42,13 @@ model Home {
   realtor_id          Int
   realtor             User         @relation(fields: [realtor_id], references: [id])
   messages            Message[]
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
 }
 
 model Image {
   id         Int      @id @default(autoincrement())
+  url        String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   // one image can belong to one home
