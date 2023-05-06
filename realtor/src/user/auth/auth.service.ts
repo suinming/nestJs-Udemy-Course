@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, HttpException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
@@ -16,7 +16,10 @@ interface SigninParams {
 @Injectable()
 export class AuthService {
   constructor(private readonly prismaService: PrismaService) {}
-  async signup({ email, password, name, phone }: SignupParams) {
+  async signup(
+    { email, password, name, phone }: SignupParams,
+    userType: UserType,
+  ) {
     const userExists = await this.prismaService.user.findUnique({
       where: {
         email,
@@ -32,20 +35,39 @@ export class AuthService {
         name,
         phone,
         password: hashedPassword,
-        user_Type: UserType.BUYER,
+        user_Type: userType,
       },
     });
-    const token = await jwt.sign(
+    return this.generateJWT(name, user.id);
+  }
+  async signin({ email, password }: SigninParams) {
+    const user = await this.prismaService.user.findUnique({ where: { email } });
+    if (!user) {
+      // do not want user know exactly what is wrong
+      throw new HttpException('invalid credentials', 400);
+    }
+    const hashedPassword = user.password;
+    const isValidPassword = await bcrypt.compare(password, hashedPassword);
+    if (!isValidPassword) {
+      // do not want user know exactly what is wrong
+      throw new HttpException('invalid credentials', 400);
+    }
+    return this.generateJWT(user.name, user.id);
+  }
+  private generateJWT(name: string, id: number) {
+    return jwt.sign(
       {
         name,
-        id: user.id,
+        id,
       },
       process.env.JSON_TOKEN_KEY,
       {
         expiresIn: 360000000,
       },
     );
-    return token;
   }
-  async signin({ email, password }: SigninParams) {}
+  generateProductKey(email: string, userType: UserType) {
+    const string = `${email}-${userType}-${process.env.PRODUCT_KEY_SECRET}`;
+    return bcrypt.hash(string, 10);
+  }
 }
