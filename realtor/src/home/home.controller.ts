@@ -8,15 +8,18 @@ import {
   Param,
   ParseIntPipe,
   Body,
+  NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PropertyType } from '@prisma/client';
+import { UserInfo } from 'src/user/decorator/user.decorator';
 import { User } from 'src/user/decorator/user.decorator';
 import { CreateHomeDto, HomeResponseDto, UpdateHomeDto } from './dto/home.dto';
 import { HomeService } from './home.service';
 
 @Controller('home')
 export class HomeController {
-  constructor(private readonly homeService: HomeService) { }
+  constructor(private readonly homeService: HomeService) {}
   @Get()
   getHomes(
     @Query('city') city?: string,
@@ -27,9 +30,9 @@ export class HomeController {
     const price =
       minPrice || maxPrice
         ? {
-          ...(minPrice && { gte: parseFloat(minPrice) }),
-          ...(maxPrice && { lte: parseFloat(maxPrice) }),
-        }
+            ...(minPrice && { gte: parseFloat(minPrice) }),
+            ...(maxPrice && { lte: parseFloat(maxPrice) }),
+          }
         : undefined;
 
     const filters = {
@@ -46,21 +49,36 @@ export class HomeController {
   }
 
   @Post()
-  createHome(@Body() body: CreateHomeDto, @User() user) {
-    return user;
-    // return this.homeService.createHome(body);
+  createHome(@Body() body: CreateHomeDto, @User() user: UserInfo) {
+    return this.homeService.createHome(body, user.id);
   }
 
   @Put(':id')
-  updateHome(
+  async updateHome(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateHomeDto,
+    @User() user: UserInfo,
   ) {
+    const realtor = await this.homeService.getRealtorByHomeId(id);
+    if (realtor.id !== user.id) {
+      throw new UnauthorizedException();
+    }
     return this.homeService.updateHomeById(id, body);
   }
 
   @Delete(':id')
-  deleteHome(@Param('id', ParseIntPipe) id: number) {
-    return this.homeService.deleteHomeById(id);
+  async deleteHome(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: UserInfo,
+  ) {
+    const realtor = await this.homeService.getRealtorByHomeId(id);
+    if (realtor) {
+      throw new UnauthorizedException();
+    }
+    if (realtor.id !== user.id) {
+      throw new UnauthorizedException();
+    }
+    console.log(realtor);
+    // return this.homeService.deleteHomeById(id);
   }
 }
