@@ -28,8 +28,8 @@ export class HomeController {
   @Get()
   getHomes(
     @Query('city') city?: string,
-    @Query('maxPrice') maxPrice?: string,
     @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
     @Query('propertyType') propertyType?: PropertyType,
   ): Promise<HomeResponseDto[]> {
     const price =
